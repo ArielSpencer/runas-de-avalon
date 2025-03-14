@@ -6,7 +6,7 @@ player = {
   "nome": "Player",
   "level": 1,
   "exp": 0,
-  "exp_max": 50,
+  "exp_max": 30,
   "hp": 100,
   "hp_max": 100,
   "dano": 25,
@@ -44,6 +44,18 @@ def exibir_player():
     print(
           f"Nome: {player['nome']} // Level: {player['level']} // Dano: {player['dano']} // HP: {player['hp']}/{player['hp_max']} // Exp: {player['exp']}/{player['exp_max']}"
     )
+    
+def reset_player():
+    player["hp"] = player["hp_max"]
+    
+def reset_npc(npc):
+    npc["hp"] = npc["hp_max"]
+    
+def level_up():
+    if player["exp"] >= player["exp_max"]:
+        player["level"] += 1
+        player["exp"] = 0
+        print("Level UP!")
 
 def iniciar_batalha(npc):
     while player["hp"] > 0 and npc["hp"] > 0:
@@ -56,8 +68,12 @@ def iniciar_batalha(npc):
       player["exp"] += npc["exp"]
       exibir_player()
     else:
-      print(f"{npc['nome']} venceu! Game Over")
-      exibir_npc(npc)
+      print(f"{npc['nome']} venceu!")
+    
+    level_up()
+      
+    reset_player()
+    reset_npc(npc)
 
 def atacar_npc(npc):
     npc["hp"] -= player["dano"]
@@ -75,3 +91,9 @@ gerar_npcs(3)
 
 npc_selecionado = lista_npcs[0]
 iniciar_batalha(npc_selecionado)
+iniciar_batalha(npc_selecionado)
+iniciar_batalha(npc_selecionado)
+iniciar_batalha(npc_selecionado)
+iniciar_batalha(npc_selecionado)
+
+exibir_player()
