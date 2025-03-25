@@ -7,6 +7,7 @@ from models.ui import (
     display_about, display_credits, display_battle_header,
     display_victory, display_defeat
 )
+from models.inventory import drop_item, add_to_inventory, display_inventory, apply_equipped_items_bonuses
 
 def display_main_menu():
     display_logo()
@@ -77,6 +78,15 @@ def battle_loop(player, npcs):
         
         victory = start_battle(player, current_npc)
         
+        if victory:
+            dropped_item = drop_item(player.get("class", ""))
+            if dropped_item:
+                add_to_inventory(dropped_item)
+                print(f"\nVocê encontrou: {dropped_item['name']} ({dropped_item['rarity'].capitalize()})!")
+                print(f"- {dropped_item['description']}")
+            else:
+                print("\nVocê não encontrou nenhum item desta vez.")
+        
         if player["level"] > old_level:
             bonus = apply_level_bonus(player)
             
@@ -94,7 +104,32 @@ def battle_loop(player, npcs):
         input()
         
         if victory:
-            npc_index += 1
+            while True:
+                clear_screen()
+                display_logo()
+                print(f"\n=== PRÓXIMOS PASSOS ===")
+                print(f"Inimigo derrotado: {current_npc['name']}")
+                
+                if npc_index < total_npcs - 1:
+                    print(f"\nPróximo inimigo: NPC #{npc_index + 2}")
+                else:
+                    print(f"\nEste era o último inimigo!")
+                
+                print("\n1. Continuar para a próxima batalha")
+                print("2. Ver inventário")
+                
+                print("\nEscolha uma opção: ", end="")
+                choice = input().strip()
+                
+                if choice == '1':
+                    npc_index += 1
+                    break
+                elif choice == '2':
+                    display_inventory()
+                    apply_equipped_items_bonuses(player)
+                else:
+                    print("Opção inválida. Pressione Enter para continuar...")
+                    input()
             
             if npc_index < total_npcs:
                 continue
@@ -108,6 +143,9 @@ def battle_loop(player, npcs):
 def start_adventure():
     if not create_character():
         return
+    
+    from models.inventory import reset_inventory
+    reset_inventory()
     
     npcs = generate_npcs(20)
     battle_loop(player, npcs)
