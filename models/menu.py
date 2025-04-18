@@ -7,7 +7,7 @@ from models.ui import (
     display_about, display_credits, display_battle_header,
     display_victory, display_defeat
 )
-from models.inventory import drop_item, add_to_inventory, display_inventory, apply_equipped_items_bonuses
+from models.inventory import drop_item, add_to_inventory, display_inventory, apply_equipped_items_bonuses, get_equipped_items
 
 def display_main_menu():
     display_logo()
@@ -117,6 +117,7 @@ def battle_loop(player, npcs):
                 
                 print("\n1. Continuar para a próxima batalha")
                 print("2. Ver inventário")
+                print("3. Visualizar status")
                 
                 print("\nEscolha uma opção: ", end="")
                 choice = input().strip()
@@ -127,6 +128,8 @@ def battle_loop(player, npcs):
                 elif choice == '2':
                     display_inventory()
                     apply_equipped_items_bonuses(player)
+                elif choice == '3':
+                    display_player_status(player)
                 else:
                     print("Opção inválida. Pressione Enter para continuar...")
                     input()
@@ -178,3 +181,37 @@ def main_menu():
             print(f"Erro: {e}")
             print("Pressione Enter para continuar...")
             input()
+
+def display_player_status(player):
+    clear_screen()
+    display_logo()
+    print("\n=== STATUS DO PERSONAGEM ===")
+
+    print(f"\nNome: {player['name']}")
+    if 'class' in player:
+        print(f"Classe: {player['class']}")
+
+    print(f"\nNível: {player['level']}")
+    print(f"Experiência: {player['exp']}/{player['exp_max']}")
+
+    print(f"\nAtributos:")
+    print(f"HP: {player['hp']}/{player['hp_max']}")
+    print(f"Dano base: {player['damage']}")
+
+    equipped_items = get_equipped_items()
+    if equipped_items:
+        print("\nBônus de itens equipados:")
+        for item in equipped_items:
+            print(f"\n{item['name']} ({item['rarity'].capitalize()}):")
+            for stat, value in item.get('effects', {}).items():
+                if stat == "hp_max":
+                    print(f"  HP Máximo: {'+' if value > 0 else ''}{value}")
+                elif stat == "damage":
+                    print(f"  Dano: {'+' if value > 0 else ''}{value}")
+                elif stat == "heal":
+                    print(f"  Cura: {value} HP")
+                else:
+                    print(f"  {stat}: {value}")
+    
+    print("\nPressione Enter para voltar...")
+    input()
