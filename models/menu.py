@@ -207,6 +207,8 @@ def display_player_status(player):
     print(f"\nAtributos:")
     print(f"HP: {player['hp']}/{player['hp_max']}")
     print(f"Dano base: {player['damage']}")
+    
+    print(f"Moedas: {player.get('coins', 0)}")
 
     equipped_items = get_equipped_items()
     if equipped_items:

@@ -38,7 +38,9 @@ def set_player(new_player):
 
 def show_player():
     class_info = f" // Classe: {player['class']}" if 'class' in player else ""
-    print(f"Nome: {player['name']}{class_info} // Level: {player['level']} // Dano: {player['damage']} // HP: {player['hp']}/{player['hp_max']} // Exp: {player['exp']}/{player['exp_max']}")
+    print(f"Player: Nome: {player['name']}{class_info} // Level: {player['level']}")
+    print(f"Status: Dano: {player['damage']} // HP: {player['hp']}/{player['hp_max']} // Exp: {player['exp']}/{player['exp_max']}")
+    print(f"Moedas: {player.get('coins', 0)}")
 
 def reset_player(player):
     player["hp"] = player["hp_max"]
