@@ -8,6 +8,7 @@ player = {
     "hp": 100,
     "hp_max": 100,
     "damage": 25,
+    "coins": 0,
 }
 
 def create_player(name, player_class):
@@ -22,6 +23,7 @@ def create_player(name, player_class):
         "exp_max": 30,
         "hp_max": PLAYER_CLASSES[player_class]["hp_max"],
         "damage": PLAYER_CLASSES[player_class]["damage"],
+        "coins": 0,
     }
 
     new_player["hp"] = new_player["hp_max"]

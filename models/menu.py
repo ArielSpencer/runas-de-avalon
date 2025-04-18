@@ -7,7 +7,7 @@ from models.ui import (
     display_about, display_credits, display_battle_header,
     display_victory, display_defeat
 )
-from models.inventory import drop_item, add_to_inventory, display_inventory, apply_equipped_items_bonuses, get_equipped_items
+from models.inventory import drop_item, add_to_inventory, display_inventory, apply_equipped_items_bonuses, get_equipped_items, drop_coins
 
 def display_main_menu():
     display_logo()
@@ -86,6 +86,16 @@ def battle_loop(player, npcs):
                 print(f"- {dropped_item['description']}")
             else:
                 print("\nVocê não encontrou nenhum item desta vez.")
+
+            coins_dropped, is_bonus = drop_coins(current_npc["level"])
+            if coins_dropped > 0:
+                player["coins"] += coins_dropped
+                if is_bonus:
+                    print(f"\n💰 BÔNUS DE SORTE! Você encontrou {coins_dropped} moedas!")
+                else:
+                    print(f"\n💰 Você encontrou {coins_dropped} moedas!")
+            else:
+                print("\nVocê não encontrou nenhuma moeda desta vez.")
         
         if player["level"] > old_level:
             bonus = apply_level_bonus(player)

@@ -23,6 +23,18 @@ def drop_item(player_class):
     
     return None
 
+def drop_coins(npc_level):
+    if random.random() <= 0.8:
+        base_amount = random.randint(5, 10) * npc_level
+        if random.random() <= 0.1:
+            bonus_multiplier = random.randint(2, 3)
+            coins = base_amount * bonus_multiplier
+            return coins, True
+        else:
+            return base_amount, False
+    else:
+        return 0, False
+
 def add_to_inventory(item):
     if item:
         item_copy = item.copy()
