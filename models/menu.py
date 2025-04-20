@@ -2,6 +2,7 @@ from models.constants import PLAYER_CLASSES
 from models.player import player, create_player, set_player, show_player, apply_level_bonus
 from models.npc import generate_npcs
 from models.battle import start_battle
+from models.shop import display_shop, mark_shop_refresh_needed
 from models.ui import (
     clear_screen, display_logo, display_how_to_play, 
     display_about, display_credits, display_battle_header,
@@ -79,6 +80,8 @@ def battle_loop(player, npcs):
         victory = start_battle(player, current_npc)
         
         if victory:
+            mark_shop_refresh_needed(player)
+
             dropped_item = drop_item(player.get("class", ""))
             if dropped_item:
                 add_to_inventory(dropped_item)
@@ -96,6 +99,8 @@ def battle_loop(player, npcs):
                     print(f"\n💰 Você encontrou {coins_dropped} moedas!")
             else:
                 print("\nVocê não encontrou nenhuma moeda desta vez.")
+
+            print("\n📦 A loja foi reabastecida com novos itens!")
         
         if player["level"] > old_level:
             bonus = apply_level_bonus(player)
@@ -128,6 +133,7 @@ def battle_loop(player, npcs):
                 print("\n1. Continuar para a próxima batalha")
                 print("2. Ver inventário")
                 print("3. Visualizar status")
+                print("4. Acessar loja")
                 
                 print("\nEscolha uma opção: ", end="")
                 choice = input().strip()
@@ -140,6 +146,8 @@ def battle_loop(player, npcs):
                     apply_equipped_items_bonuses(player)
                 elif choice == '3':
                     display_player_status(player)
+                elif choice == '4':
+                    display_shop(player)
                 else:
                     print("Opção inválida. Pressione Enter para continuar...")
                     input()
