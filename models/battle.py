@@ -1,5 +1,6 @@
 from models.player import reset_player, level_up
 from models.npc import reset_npc
+from models.shop import mark_shop_refresh_needed
 
 def attack_npc(npc, player):
     damage = player["damage"]
@@ -38,6 +39,9 @@ def end_battle(player, npc, won):
             print(f"Nível: {old_level} -> {player['level']}")
         else:
             print(f"Experiência: {old_exp}/{old_exp_max} -> {player['exp']}/{player['exp_max']}")
+        
+        mark_shop_refresh_needed(player)
+        print("\n📦 A loja foi reabastecida com novos itens!")
     else:
         print("\n=== DERROTA ===")
         print(f"{npc['name']} venceu {player.get('name', 'Player')}!")
