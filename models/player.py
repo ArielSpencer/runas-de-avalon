@@ -9,6 +9,8 @@ player = {
     "hp_max": 100,
     "damage": 25,
     "coins": 0,
+    "shop_needs_refresh": True,
+    "shop_last_refresh": 0,
 }
 
 def create_player(name, player_class):
@@ -24,6 +26,8 @@ def create_player(name, player_class):
         "hp_max": PLAYER_CLASSES[player_class]["hp_max"],
         "damage": PLAYER_CLASSES[player_class]["damage"],
         "coins": 0,
+        "shop_needs_refresh": True,
+        "shop_last_refresh": 0,
     }
 
     new_player["hp"] = new_player["hp_max"]
