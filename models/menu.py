@@ -1,4 +1,4 @@
-from models.constants import PLAYER_CLASSES
+from models.constants import PLAYER_CLASSES, DIFFICULTY_SETTINGS
 from models.player import player, create_player, set_player, show_player, apply_level_bonus
 from models.npc import generate_npcs
 from models.battle import start_battle
@@ -19,6 +19,37 @@ def display_main_menu():
     print("5. Sair")
     print("\nEscolha uma opção (1-5): ", end="")
 
+def select_difficulty():
+    clear_screen()
+    display_logo()
+    print("\n=== SELEÇÃO DE DIFICULDADE ===")
+    print("\nEscolha o nível de dificuldade:")
+    
+    difficulties = list(DIFFICULTY_SETTINGS.keys())
+    for i, (difficulty, settings) in enumerate(DIFFICULTY_SETTINGS.items(), 1):
+        exp_mult = settings["exp_multiplier"]
+        coin_mult = settings["coin_multiplier"]
+        enemy_hp = settings["enemy_hp_multiplier"]
+        enemy_dmg = settings["enemy_damage_multiplier"]
+        
+        print(f"\n{i}. {difficulty}")
+        print(f"   Experiência: {'+' if exp_mult > 1 else ''}{int((exp_mult - 1) * 100)}%")
+        print(f"   Moedas: {'+' if coin_mult > 1 else ''}{int((coin_mult - 1) * 100)}%")
+        print(f"   HP Inimigos: {'+' if enemy_hp > 1 else ''}{int((enemy_hp - 1) * 100)}%")
+        print(f"   Dano Inimigos: {'+' if enemy_dmg > 1 else ''}{int((enemy_dmg - 1) * 100)}%")
+    
+    while True:
+        try:
+            choice = int(input(f"\nEscolha uma dificuldade (1-{len(difficulties)}): "))
+            if 1 <= choice <= len(difficulties):
+                selected_difficulty = difficulties[choice - 1]
+                print(f"\nDificuldade selecionada: {selected_difficulty}")
+                return selected_difficulty
+            else:
+                print(f"Por favor, escolha um número entre 1 e {len(difficulties)}.")
+        except ValueError:
+            print("Por favor, digite um número válido.")
+
 def create_character():
     clear_screen()
     display_logo()
@@ -30,29 +61,33 @@ def create_character():
     
     print("\nEscolha sua classe:")
     for i, (class_name, class_data) in enumerate(PLAYER_CLASSES.items(), 1):
+        critical_percent = int(class_data['critical_chance'] * 100)
         print(f"{i}. {class_name} - {class_data['description']}")
-        print(f"   HP: {class_data['hp_max']} | Dano: {class_data['damage']}")
+        print(f"   HP: {class_data['hp_max']} | Dano: {class_data['damage']} | Crítico: {critical_percent}%")
     
     while True:
         try:
-            choice = int(input("\nEscolha uma classe (1-3): "))
-            if 1 <= choice <= 3:
+            choice = int(input(f"\nEscolha uma classe (1-{len(PLAYER_CLASSES)}): "))
+            if 1 <= choice <= len(PLAYER_CLASSES):
                 break
             else:
-                print("Por favor, escolha um número entre 1 e 3.")
+                print(f"Por favor, escolha um número entre 1 e {len(PLAYER_CLASSES)}.")
         except ValueError:
             print("Por favor, digite um número válido.")
     
     class_names = list(PLAYER_CLASSES.keys())
     selected_class = class_names[choice - 1]
     
-    new_player = create_player(name, selected_class)
+    difficulty = select_difficulty()
+    
+    new_player = create_player(name, selected_class, difficulty)
     set_player(new_player)
     
     clear_screen()
     display_logo()
     print(f"\nBem-vindo às Runas de Avalon, {name}!")
     print(f"Você escolheu a classe: {selected_class}")
+    print(f"Dificuldade: {difficulty}")
     print("\nSeus atributos iniciais são:")
     show_player()
     
@@ -134,6 +169,7 @@ def battle_loop(player, npcs):
                 print("2. Ver inventário")
                 print("3. Visualizar status")
                 print("4. Acessar loja")
+                print("5. Ver estatísticas")
                 
                 print("\nEscolha uma opção: ", end="")
                 choice = input().strip()
@@ -148,6 +184,8 @@ def battle_loop(player, npcs):
                     display_player_status(player)
                 elif choice == '4':
                     display_shop(player)
+                elif choice == '5':
+                    display_player_statistics(player)
                 else:
                     print("Opção inválida. Pressione Enter para continuar...")
                     input()
@@ -156,6 +194,7 @@ def battle_loop(player, npcs):
                 continue
             else:
                 display_victory()
+                display_final_statistics(player)
                 return
         else:
             display_defeat(current_npc["name"])
@@ -208,13 +247,16 @@ def display_player_status(player):
     print(f"\nNome: {player['name']}")
     if 'class' in player:
         print(f"Classe: {player['class']}")
+    print(f"Dificuldade: {player.get('difficulty', 'Normal')}")
 
     print(f"\nNível: {player['level']}")
     print(f"Experiência: {player['exp']}/{player['exp_max']}")
 
+    critical_percent = int(player.get('critical_chance', 0) * 100)
     print(f"\nAtributos:")
     print(f"HP: {player['hp']}/{player['hp_max']}")
     print(f"Dano base: {player['damage']}")
+    print(f"Chance de crítico: {critical_percent}%")
     
     print(f"Moedas: {player.get('coins', 0)}")
 
@@ -228,10 +270,76 @@ def display_player_status(player):
                     print(f"  HP Máximo: {'+' if value > 0 else ''}{value}")
                 elif stat == "damage":
                     print(f"  Dano: {'+' if value > 0 else ''}{value}")
+                elif stat == "critical_chance":
+                    print(f"  Crítico: {'+' if value > 0 else ''}{int(value*100)}%")
                 elif stat == "heal":
                     print(f"  Cura: {value} HP")
                 else:
                     print(f"  {stat}: {value}")
     
+    if player.get('temp_effects'):
+        print("\nEfeitos temporários ativos:")
+        for effect, duration in player['temp_effects'].items():
+            print(f"  {effect}: {duration} batalhas restantes")
+    
     print("\nPressione Enter para voltar...")
+    input()
+
+def display_player_statistics(player):
+    clear_screen()
+    display_logo()
+    print("\n=== ESTATÍSTICAS DO JOGADOR ===")
+    
+    total_battles = player.get('total_battles', 0)
+    total_victories = player.get('total_victories', 0)
+    total_critical_hits = player.get('total_critical_hits', 0)
+    highest_damage = player.get('highest_damage', 0)
+    
+    win_rate = (total_victories / total_battles * 100) if total_battles > 0 else 0
+    critical_rate = (total_critical_hits / total_battles * 100) if total_battles > 0 else 0
+    
+    print(f"\nBatalhas totais: {total_battles}")
+    print(f"Vitórias: {total_victories}")
+    print(f"Taxa de vitória: {win_rate:.1f}%")
+    print(f"Críticos dados: {total_critical_hits}")
+    print(f"Taxa de crítico: {critical_rate:.1f}%")
+    print(f"Maior dano causado: {highest_damage}")
+    print(f"Moedas totais: {player.get('coins', 0)}")
+    print(f"Nível atual: {player['level']}")
+    print(f"Dificuldade: {player.get('difficulty', 'Normal')}")
+    
+    print("\nPressione Enter para voltar...")
+    input()
+
+def display_final_statistics(player):
+    clear_screen()
+    display_logo()
+    print("\n=== ESTATÍSTICAS FINAIS ===")
+    
+    total_battles = player.get('total_battles', 0)
+    total_victories = player.get('total_victories', 0)
+    total_critical_hits = player.get('total_critical_hits', 0)
+    highest_damage = player.get('highest_damage', 0)
+    
+    win_rate = (total_victories / total_battles * 100) if total_battles > 0 else 0
+    critical_rate = (total_critical_hits / total_battles * 100) if total_battles > 0 else 0
+    
+    print(f"\n🏆 JORNADA COMPLETA!")
+    print(f"Personagem: {player['name']} ({player.get('class', 'Desconhecida')})")
+    print(f"Nível final: {player['level']}")
+    print(f"Dificuldade: {player.get('difficulty', 'Normal')}")
+    print(f"\nEstatísticas da jornada:")
+    print(f"Batalhas travadas: {total_battles}")
+    print(f"Taxa de vitória: {win_rate:.1f}%")
+    print(f"Críticos desferidos: {total_critical_hits}")
+    print(f"Taxa de crítico: {critical_rate:.1f}%")
+    print(f"Maior dano causado: {highest_damage}")
+    print(f"Moedas coletadas: {player.get('coins', 0)}")
+    
+    if player.get('difficulty') == 'Insano':
+        print(f"\n🔥 MESTRE SUPREMO! Você completou o jogo na dificuldade Insana!")
+    elif player.get('difficulty') == 'Difícil':
+        print(f"\n⚔️ GUERREIRO EXPERIENTE! Você venceu na dificuldade Difícil!")
+    
+    print("\nPressione Enter para voltar ao menu principal...")
     input()
