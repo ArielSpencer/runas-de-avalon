@@ -1,50 +1,107 @@
-from models.player import reset_player, level_up
+import random
+from models.player import reset_player, level_up, update_player_stats, update_temp_effects, get_effective_stats
 from models.npc import reset_npc
 from models.shop import mark_shop_refresh_needed
+from models.constants import DIFFICULTY_SETTINGS
+
+def calculate_critical_damage(base_damage, critical_chance):
+    if random.random() <= critical_chance:
+        critical_multiplier = random.uniform(1.5, 2.5)
+        critical_damage = int(base_damage * critical_multiplier)
+        return critical_damage, True
+    return base_damage, False
 
 def attack_npc(npc, player):
-    damage = player["damage"]
+    stats = get_effective_stats(player)
+    base_damage = stats["damage"]
+    critical_chance = stats["critical_chance"]
+    
+    damage, is_critical = calculate_critical_damage(base_damage, critical_chance)
+    
     npc["hp"] -= damage
     if npc["hp"] < 0:
         npc["hp"] = 0
-    return damage
+    
+    update_player_stats(player, damage, is_critical)
+    
+    return damage, is_critical
     
 def attack_player(npc, player):
-    damage = npc["damage"]
+    base_damage = npc["damage"]
+    
+    damage_variance = random.uniform(0.8, 1.2)
+    damage = int(base_damage * damage_variance)
+    
+    npc_critical_chance = 0.05 + (npc["level"] * 0.01)
+    damage, is_critical = calculate_critical_damage(damage, npc_critical_chance)
+    
     player["hp"] -= damage
     if player["hp"] < 0:
         player["hp"] = 0
-    return damage
+    
+    return damage, is_critical
 
 def display_battle_state(battle_state):
     print(f"{battle_state['player_name']}: hp {battle_state['player_hp']}/{battle_state['player_hp_max']} || {battle_state['npc_name']}: hp {battle_state['npc_hp']}/{battle_state['npc_hp_max']}")
+
+def apply_difficulty_modifiers(player, npc, exp_gained, coins_gained):
+    difficulty = player.get("difficulty", "Normal")
+    modifiers = DIFFICULTY_SETTINGS.get(difficulty, DIFFICULTY_SETTINGS["Normal"])
+    
+    modified_exp = int(exp_gained * modifiers["exp_multiplier"])
+    modified_coins = int(coins_gained * modifiers["coin_multiplier"])
+    
+    return modified_exp, modified_coins
 
 def end_battle(player, npc, won):
     print("\n-----------------------------")
     
     if won:
         print("\n=== VITÓRIA! ===")
-        print(f"{player.get('name', 'Player')} venceu {npc['name']}! + {npc['exp']} de EXP")
+        
+        base_exp = npc["exp"]
+        base_coins = random.randint(3, 8) * npc["level"]
+        
+        exp_multiplier = player.get("temp_effects", {}).get("exp_multiplier", 1.0)
+        modified_exp = int(base_exp * exp_multiplier)
+        
+        modified_exp, modified_coins = apply_difficulty_modifiers(player, npc, modified_exp, base_coins)
+        
+        print(f"{player.get('name', 'Player')} venceu {npc['name']}!")
+        print(f"Experiência ganha: +{modified_exp}")
+        print(f"Moedas ganhas: +{modified_coins}")
+        
+        if exp_multiplier > 1.0:
+            print(f"🌟 BÔNUS DE EXPERIÊNCIA ATIVO! (x{exp_multiplier})")
         
         old_level = player["level"]
         old_exp = player["exp"]
         old_exp_max = player["exp_max"]
         
-        player["exp"] += npc["exp"]
+        player["exp"] += modified_exp
+        player["coins"] = player.get("coins", 0) + modified_coins
+        player["total_victories"] = player.get("total_victories", 0) + 1
         
         leveled_up = level_up(player)
         
         if leveled_up:
             print(f"Experiência: {old_exp}/{old_exp_max} -> {player['exp']}/{player['exp_max']}")
-            print(f"Nível: {old_level} -> {player['level']}")
+            print(f"🎉 LEVEL UP! Nível: {old_level} -> {player['level']}")
         else:
             print(f"Experiência: {old_exp}/{old_exp_max} -> {player['exp']}/{player['exp_max']}")
+        
+        update_temp_effects(player)
         
         mark_shop_refresh_needed(player)
         print("\n📦 A loja foi reabastecida com novos itens!")
     else:
         print("\n=== DERROTA ===")
         print(f"{npc['name']} venceu {player.get('name', 'Player')}!")
+        
+        coins_lost = min(player.get("coins", 0), random.randint(5, 15))
+        if coins_lost > 0:
+            player["coins"] -= coins_lost
+            print(f"💰 Você perdeu {coins_lost} moedas!")
     
     reset_player(player)
     reset_npc(npc)
@@ -61,8 +118,12 @@ def start_battle(player, npc):
         print(f"Rodada {round_count}:")
         
         print(f"- {player.get('name', 'Player')} ataca {npc['name']}!")
-        player_damage = attack_npc(npc, player)
-        print(f"  Causou {player_damage} de dano!")
+        player_damage, player_critical = attack_npc(npc, player)
+        
+        if player_critical:
+            print(f"  💥 CRÍTICO! Causou {player_damage} de dano!")
+        else:
+            print(f"  Causou {player_damage} de dano!")
         
         battle_state = {
             "player_name": player.get('name', 'Player'),
@@ -79,8 +140,12 @@ def start_battle(player, npc):
             break
             
         print(f"- {npc['name']} ataca {player.get('name', 'Player')}!")
-        npc_damage = attack_player(npc, player)
-        print(f"  Causou {npc_damage} de dano!")
+        npc_damage, npc_critical = attack_player(npc, player)
+        
+        if npc_critical:
+            print(f"  💥 CRÍTICO INIMIGO! Causou {npc_damage} de dano!")
+        else:
+            print(f"  Causou {npc_damage} de dano!")
         
         battle_state = {
             "player_name": player.get('name', 'Player'),
