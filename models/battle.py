@@ -3,6 +3,7 @@ from models.player import reset_player, level_up, update_player_stats, update_te
 from models.npc import reset_npc
 from models.shop import mark_shop_refresh_needed
 from models.constants import DIFFICULTY_SETTINGS
+from models.achievements import check_achievements, apply_achievement_rewards, display_achievement_notification, update_achievement_progress
 
 def calculate_critical_damage(base_damage, critical_chance):
     if random.random() <= critical_chance:
@@ -23,6 +24,12 @@ def attack_npc(npc, player):
         npc["hp"] = 0
     
     update_player_stats(player, damage, is_critical)
+    
+    if is_critical:
+        newly_unlocked = update_achievement_progress(player, "critical")
+        if newly_unlocked:
+            for achievement_id in newly_unlocked:
+                print(f"\n🎉 CONQUISTA DESBLOQUEADA: {achievement_id}")
     
     return damage, is_critical
     
@@ -82,11 +89,31 @@ def end_battle(player, npc, won):
         player["coins"] = player.get("coins", 0) + modified_coins
         player["total_victories"] = player.get("total_victories", 0) + 1
         
+        if npc.get("is_boss", False):
+            newly_unlocked = update_achievement_progress(player, "boss_defeat")
+        else:
+            newly_unlocked = update_achievement_progress(player, "victory")
+        
+        for achievement_id in newly_unlocked:
+            display_achievement_notification(achievement_id)
+            rewards = apply_achievement_rewards(player, [achievement_id])
+            print("🎁 Recompensas aplicadas automaticamente!")
+            print("Pressione Enter para continuar...")
+            input()
+        
         leveled_up = level_up(player)
         
         if leveled_up:
             print(f"Experiência: {old_exp}/{old_exp_max} -> {player['exp']}/{player['exp_max']}")
             print(f"🎉 LEVEL UP! Nível: {old_level} -> {player['level']}")
+            
+            level_achievements = check_achievements(player)
+            if level_achievements:
+                for achievement_id in level_achievements:
+                    display_achievement_notification(achievement_id)
+                    rewards = apply_achievement_rewards(player, [achievement_id])
+                    print("Pressione Enter para continuar...")
+                    input()
         else:
             print(f"Experiência: {old_exp}/{old_exp_max} -> {player['exp']}/{player['exp_max']}")
         
