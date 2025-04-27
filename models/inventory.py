@@ -34,7 +34,13 @@ def drop_item(player_class, is_boss=False, difficulty="Normal"):
             rarity_items = [item for item in available_items if item["rarity"] == rarity]
             
             if rarity_items:
-                return random.choice(rarity_items)
+                dropped_item = random.choice(rarity_items)
+                
+                if dropped_item["rarity"] == "lendário":
+                    from models.achievements import update_achievement_progress
+                    update_achievement_progress({"legendary_items_found": 0}, "legendary_found")
+                
+                return dropped_item
     
     return None
 
@@ -140,6 +146,16 @@ def use_consumable_item(item_index, player):
                 duration = item.get("duration", 3)
                 player["temp_effects"]["exp_multiplier"] = value
                 message += f"Sua experiência será multiplicada por {value} pelas próximas {duration} batalhas!\n"
+        
+        from models.achievements import update_achievement_progress
+        newly_unlocked = update_achievement_progress(player, "consumable_used")
+        
+        if newly_unlocked:
+            from models.achievements import display_achievement_notification, apply_achievement_rewards
+            for achievement_id in newly_unlocked:
+                display_achievement_notification(achievement_id)
+                apply_achievement_rewards(player, [achievement_id])
+                message += f"\n🎉 CONQUISTA DESBLOQUEADA: {achievement_id}!\n"
         
         remove_from_inventory(item_index)
         return True, message.strip()
