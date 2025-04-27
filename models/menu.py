@@ -3,21 +3,23 @@ from models.player import player, create_player, set_player, show_player, apply_
 from models.npc import generate_npcs
 from models.battle import start_battle
 from models.shop import display_shop, mark_shop_refresh_needed
+from models.achievements import display_achievements_menu, check_achievements, apply_achievement_rewards
 from models.ui import (
     clear_screen, display_logo, display_how_to_play, 
     display_about, display_credits, display_battle_header,
-    display_victory, display_defeat
+    display_victory, display_defeat, display_animated_logo
 )
 from models.inventory import drop_item, add_to_inventory, display_inventory, apply_equipped_items_bonuses, get_equipped_items, drop_coins
 
 def display_main_menu():
-    display_logo()
-    print("\n1. Iniciar Aventura")
-    print("2. Como Jogar")
-    print("3. Sobre")
-    print("4. Créditos")
-    print("5. Sair")
-    print("\nEscolha uma opção (1-5): ", end="")
+    display_animated_logo()
+    print("\n1. 🗡️ Iniciar Aventura")
+    print("2. 📖 Como Jogar")
+    print("3. 🏆 Conquistas")
+    print("4. ℹ️ Sobre")
+    print("5. 👨‍💻 Créditos")
+    print("6. 🚪 Sair")
+    print("\nEscolha uma opção (1-6): ", end="")
 
 def select_difficulty():
     clear_screen()
@@ -165,11 +167,12 @@ def battle_loop(player, npcs):
                 else:
                     print(f"\nEste era o último inimigo!")
                 
-                print("\n1. Continuar para a próxima batalha")
-                print("2. Ver inventário")
-                print("3. Visualizar status")
-                print("4. Acessar loja")
-                print("5. Ver estatísticas")
+                print("\n1. ⚔️ Continuar para a próxima batalha")
+                print("2. 🎒 Ver inventário")
+                print("3. 📊 Visualizar status")
+                print("4. 🏪 Acessar loja")
+                print("5. 📈 Ver estatísticas")
+                print("6. 🏆 Ver conquistas")
                 
                 print("\nEscolha uma opção: ", end="")
                 choice = input().strip()
@@ -186,6 +189,8 @@ def battle_loop(player, npcs):
                     display_shop(player)
                 elif choice == '5':
                     display_player_statistics(player)
+                elif choice == '6':
+                    display_achievements_menu(player)
                 else:
                     print("Opção inválida. Pressione Enter para continuar...")
                     input()
@@ -211,6 +216,8 @@ def start_adventure():
     battle_loop(player, npcs)
 
 def main_menu():
+    temp_player = {"achievements": {}}
+    
     while True:
         clear_screen()
         display_main_menu()
@@ -223,13 +230,17 @@ def main_menu():
             elif choice == '2':
                 display_how_to_play()
             elif choice == '3':
-                display_about()
+                display_achievements_menu(temp_player)
             elif choice == '4':
-                display_credits()
+                display_about()
             elif choice == '5':
+                display_credits()
+            elif choice == '6':
                 clear_screen()
-                print("Obrigado por jogar Runas de Avalon!")
-                print("Até a próxima aventura!")
+                display_logo()
+                print("\n🌟 Obrigado por jogar Runas de Avalon! 🌟")
+                print("⚔️ Que suas aventuras sejam épicas! ⚔️")
+                print("\nAté a próxima jornada, herói!")
                 break
             else:
                 print("Opção inválida. Pressione Enter para continuar...")
@@ -312,9 +323,20 @@ def display_player_statistics(player):
     input()
 
 def display_final_statistics(player):
+    player["game_completed"] = True
+    
+    final_achievements = check_achievements(player)
+    if final_achievements:
+        from models.achievements import display_achievement_notification, apply_achievement_rewards
+        for achievement_id in final_achievements:
+            display_achievement_notification(achievement_id)
+            rewards = apply_achievement_rewards(player, [achievement_id])
+            print("Pressione Enter para continuar...")
+            input()
+    
     clear_screen()
     display_logo()
-    print("\n=== ESTATÍSTICAS FINAIS ===")
+    print("\n🏆 === ESTATÍSTICAS FINAIS === 🏆")
     
     total_battles = player.get('total_battles', 0)
     total_victories = player.get('total_victories', 0)
@@ -324,22 +346,37 @@ def display_final_statistics(player):
     win_rate = (total_victories / total_battles * 100) if total_battles > 0 else 0
     critical_rate = (total_critical_hits / total_battles * 100) if total_battles > 0 else 0
     
-    print(f"\n🏆 JORNADA COMPLETA!")
-    print(f"Personagem: {player['name']} ({player.get('class', 'Desconhecida')})")
-    print(f"Nível final: {player['level']}")
-    print(f"Dificuldade: {player.get('difficulty', 'Normal')}")
-    print(f"\nEstatísticas da jornada:")
-    print(f"Batalhas travadas: {total_battles}")
-    print(f"Taxa de vitória: {win_rate:.1f}%")
-    print(f"Críticos desferidos: {total_critical_hits}")
-    print(f"Taxa de crítico: {critical_rate:.1f}%")
-    print(f"Maior dano causado: {highest_damage}")
-    print(f"Moedas coletadas: {player.get('coins', 0)}")
+    print(f"\n🎮 JORNADA COMPLETA!")
+    print(f"👤 Personagem: {player['name']} ({player.get('class', 'Desconhecida')})")
+    print(f"⭐ Nível final: {player['level']}")
+    print(f"🎯 Dificuldade: {player.get('difficulty', 'Normal')}")
+    
+    print(f"\n📊 Estatísticas da jornada:")
+    print(f"⚔️ Batalhas travadas: {total_battles}")
+    print(f"🏆 Taxa de vitória: {win_rate:.1f}%")
+    print(f"💥 Críticos desferidos: {total_critical_hits}")
+    print(f"🎯 Taxa de crítico: {critical_rate:.1f}%")
+    print(f"⚡ Maior dano causado: {highest_damage}")
+    print(f"💰 Moedas coletadas: {player.get('coins', 0)}")
+    
+    from models.achievements import get_achievement_points
+    achievement_points = get_achievement_points(player)
+    print(f"🏅 Pontos de conquista: {achievement_points}")
     
     if player.get('difficulty') == 'Insano':
         print(f"\n🔥 MESTRE SUPREMO! Você completou o jogo na dificuldade Insana!")
+        print("🌟 Você é uma verdadeira lenda de Avalon!")
     elif player.get('difficulty') == 'Difícil':
         print(f"\n⚔️ GUERREIRO EXPERIENTE! Você venceu na dificuldade Difícil!")
+        print("🛡️ Sua coragem é admirável!")
+    elif win_rate == 100:
+        print(f"\n✨ HERÓI PERFEITO! Você não perdeu uma única batalha!")
+        print("🎖️ Sua habilidade é incomparável!")
+    
+    from models.inventory import get_inventory_value
+    if hasattr(player, 'inventory'):
+        inventory_value = get_inventory_value()
+        print(f"💎 Valor total do inventário: {inventory_value} moedas")
     
     print("\nPressione Enter para voltar ao menu principal...")
     input()
