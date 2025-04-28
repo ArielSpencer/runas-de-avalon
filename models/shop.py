@@ -193,6 +193,17 @@ def attempt_purchase(item_index, player):
             player['coins'] -= final_price
             shop_items.pop(item_index)
             
+            from models.achievements import update_achievement_progress
+            newly_unlocked = update_achievement_progress(player, "item_purchased")
+            
+            if newly_unlocked:
+                from models.achievements import display_achievement_notification, apply_achievement_rewards
+                for achievement_id in newly_unlocked:
+                    display_achievement_notification(achievement_id)
+                    apply_achievement_rewards(player, [achievement_id])
+                    print("Pressione Enter para continuar...")
+                    input()
+            
             if shop_discount > 0:
                 shop_discount = 0
             
