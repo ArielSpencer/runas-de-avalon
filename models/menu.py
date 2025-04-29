@@ -4,22 +4,24 @@ from models.npc import generate_npcs
 from models.battle import start_battle
 from models.shop import display_shop, mark_shop_refresh_needed
 from models.achievements import display_achievements_menu, check_achievements, apply_achievement_rewards
+from models.save_system import display_save_menu, auto_save, load_auto_save
 from models.ui import (
     clear_screen, display_logo, display_how_to_play, 
     display_about, display_credits, display_battle_header,
-    display_victory, display_defeat, display_animated_logo
+    display_victory, display_defeat, display_animated_logo, display_loading_screen
 )
-from models.inventory import drop_item, add_to_inventory, display_inventory, apply_equipped_items_bonuses, get_equipped_items, drop_coins
+from models.inventory import drop_item, add_to_inventory, display_inventory, apply_equipped_items_bonuses, get_equipped_items, drop_coins, get_inventory_save_data, load_inventory_data
 
 def display_main_menu():
     display_animated_logo()
-    print("\n1. 🗡️ Iniciar Aventura")
-    print("2. 📖 Como Jogar")
-    print("3. 🏆 Conquistas")
-    print("4. ℹ️ Sobre")
-    print("5. 👨‍💻 Créditos")
-    print("6. 🚪 Sair")
-    print("\nEscolha uma opção (1-6): ", end="")
+    print("\n1. 🗡️ Nova Aventura")
+    print("2. 📁 Carregar Jogo")
+    print("3. 📖 Como Jogar")
+    print("4. 🏆 Conquistas")
+    print("5. ℹ️ Sobre")
+    print("6. 👨‍💻 Créditos")
+    print("7. 🚪 Sair")
+    print("\nEscolha uma opção (1-7): ", end="")
 
 def select_difficulty():
     clear_screen()
@@ -46,6 +48,8 @@ def select_difficulty():
             if 1 <= choice <= len(difficulties):
                 selected_difficulty = difficulties[choice - 1]
                 print(f"\nDificuldade selecionada: {selected_difficulty}")
+                print("\nPressione Enter para continuar...")
+                input()
                 return selected_difficulty
             else:
                 print(f"Por favor, escolha um número entre 1 e {len(difficulties)}.")
@@ -97,18 +101,87 @@ def create_character():
     choice = input().strip().upper()
     return choice != 'X'
 
-def battle_loop(player, npcs):
-    npc_index = 0
+def start_adventure():
+    if not create_character():
+        return
+    
+    from models.inventory import reset_inventory
+    reset_inventory()
+    
+    npcs = generate_npcs(20, player.get("difficulty", "Normal"))
+    battle_loop_with_save(player, npcs)
+
+def load_saved_game():
+    from models.save_system import handle_load_game
+    
+    save_data = handle_load_game()
+    if save_data:
+        load_game_from_data(save_data)
+
+def load_game_from_data(save_data):
+    display_loading_screen("Carregando jogo")
+    
+    loaded_player = save_data.get("player", {})
+    inventory_data = save_data.get("inventory", {})
+    shop_data = save_data.get("shop", {})
+    
+    set_player(loaded_player)
+    
+    load_inventory_data(inventory_data)
+    
+    from models.shop import load_shop_data
+    load_shop_data(shop_data)
+    
+    clear_screen()
+    display_logo()
+    print(f"\n🎮 Bem-vindo de volta, {loaded_player.get('name', 'Aventureiro')}!")
+    print(f"⭐ Nível: {loaded_player.get('level', 1)} | 🎭 Classe: {loaded_player.get('class', 'Desconhecida')}")
+    print(f"🎯 Dificuldade: {loaded_player.get('difficulty', 'Normal')}")
+    
+    if loaded_player.get("game_completed", False):
+        print("\n✅ Este personagem já completou o jogo!")
+        print("🔄 Iniciando Nova Jornada+...")
+        
+        current_battle = loaded_player.get("current_battle", 0)
+        if current_battle >= 20:
+            current_battle = 0
+            loaded_player["current_battle"] = 0
+    else:
+        current_battle = loaded_player.get("current_battle", 0)
+        if current_battle > 0:
+            print(f"📍 Você estava na batalha {current_battle + 1}/20")
+    
+    print("\nPressione Enter para continuar...")
+    input()
+    
+    npcs = generate_npcs(20, loaded_player.get("difficulty", "Normal"))
+    
+    battle_loop_with_save(loaded_player, npcs, current_battle)
+
+def battle_loop_with_save(player, npcs, start_index=0):
+    npc_index = start_index
     total_npcs = len(npcs)
     
     while npc_index < total_npcs:
         current_npc = npcs[npc_index]
+        
+        player["current_battle"] = npc_index
+        
+        if npc_index % 3 == 0:
+            inventory_data = get_inventory_save_data()
+            from models.shop import get_shop_save_data
+            shop_data = get_shop_save_data()
+            auto_save(player, inventory_data, shop_data)
         
         display_battle_header(npc_index, total_npcs, current_npc, show_player)
         
         print("\nPressione Enter para iniciar a batalha ou 'x' para voltar ao menu principal...")
         choice = input().strip().upper()
         if choice == 'X':
+            inventory_data = get_inventory_save_data()
+            from models.shop import get_shop_save_data
+            shop_data = get_shop_save_data()
+            auto_save(player, inventory_data, shop_data)
             return
         
         clear_screen()
@@ -173,6 +246,7 @@ def battle_loop(player, npcs):
                 print("4. 🏪 Acessar loja")
                 print("5. 📈 Ver estatísticas")
                 print("6. 🏆 Ver conquistas")
+                print("7. 💾 Sistema de Save")
                 
                 print("\nEscolha uma opção: ", end="")
                 choice = input().strip()
@@ -191,6 +265,11 @@ def battle_loop(player, npcs):
                     display_player_statistics(player)
                 elif choice == '6':
                     display_achievements_menu(player)
+                elif choice == '7':
+                    inventory_data = get_inventory_save_data()
+                    from models.shop import get_shop_save_data
+                    shop_data = get_shop_save_data()
+                    display_save_menu(player, inventory_data, shop_data)
                 else:
                     print("Opção inválida. Pressione Enter para continuar...")
                     input()
@@ -205,18 +284,16 @@ def battle_loop(player, npcs):
             display_defeat(current_npc["name"])
             return
 
-def start_adventure():
-    if not create_character():
-        return
-    
-    from models.inventory import reset_inventory
-    reset_inventory()
-    
-    npcs = generate_npcs(20)
-    battle_loop(player, npcs)
-
 def main_menu():
     temp_player = {"achievements": {}}
+    
+    success, auto_save_data, message = load_auto_save()
+    if success:
+        print("🔄 Auto-save detectado!")
+        print("Deseja continuar do auto-save? (S/N): ", end="")
+        if input().strip().upper() == 'S':
+            load_game_from_data(auto_save_data)
+            return
     
     while True:
         clear_screen()
@@ -228,14 +305,16 @@ def main_menu():
             if choice == '1':
                 start_adventure()
             elif choice == '2':
-                display_how_to_play()
+                load_saved_game()
             elif choice == '3':
-                display_achievements_menu(temp_player)
+                display_how_to_play()
             elif choice == '4':
-                display_about()
+                display_achievements_menu(temp_player)
             elif choice == '5':
-                display_credits()
+                display_about()
             elif choice == '6':
+                display_credits()
+            elif choice == '7':
                 clear_screen()
                 display_logo()
                 print("\n🌟 Obrigado por jogar Runas de Avalon! 🌟")
@@ -374,9 +453,8 @@ def display_final_statistics(player):
         print("🎖️ Sua habilidade é incomparável!")
     
     from models.inventory import get_inventory_value
-    if hasattr(player, 'inventory'):
-        inventory_value = get_inventory_value()
-        print(f"💎 Valor total do inventário: {inventory_value} moedas")
+    inventory_value = get_inventory_value()
+    print(f"💎 Valor total do inventário: {inventory_value} moedas")
     
     print("\nPressione Enter para voltar ao menu principal...")
     input()
