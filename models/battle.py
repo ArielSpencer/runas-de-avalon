@@ -4,6 +4,7 @@ from models.npc import reset_npc
 from models.shop import mark_shop_refresh_needed
 from models.constants import DIFFICULTY_SETTINGS
 from models.achievements import check_achievements, apply_achievement_rewards, display_achievement_notification, update_achievement_progress
+from models.random_events import should_trigger_random_event, select_random_event, execute_random_event
 
 def calculate_critical_damage(base_damage, critical_chance):
     if random.random() <= critical_chance:
@@ -136,16 +137,37 @@ def end_battle(player, npc, won):
     return won
 
 def start_battle(player, npc):
+    battle_number = player.get("current_battle", 0) + 1
+    
+    if should_trigger_random_event(battle_number, player.get("level", 1)):
+        event_id = select_random_event(battle_number)
+        if event_id:
+            event_occurred = execute_random_event(event_id, player)
+            if event_occurred:
+                print("\n🌟 O evento mágico energiza você para a batalha!")
+    
     print(f"Iniciando batalha contra {npc['name']}!\n")
     
     battle_log = []
     round_count = 1
+    
+    future_sight_bonus = player.get("temp_effects", {}).get("future_sight", 0) > 0
+    if future_sight_bonus:
+        print("🔮 Sua visão do futuro lhe dá vantagem nesta batalha!")
+        player["temp_effects"]["future_sight"] -= 1
+        if player["temp_effects"]["future_sight"] <= 0:
+            del player["temp_effects"]["future_sight"]
     
     while player["hp"] > 0 and npc["hp"] > 0:
         print(f"Rodada {round_count}:")
         
         print(f"- {player.get('name', 'Player')} ataca {npc['name']}!")
         player_damage, player_critical = attack_npc(npc, player)
+        
+        if future_sight_bonus:
+            player_damage = int(player_damage * 1.2)
+            npc["hp"] -= int(player_damage * 0.2)
+            print(f"🔮 Visão do futuro aumenta o dano!")
         
         if player_critical:
             print(f"  💥 CRÍTICO! Causou {player_damage} de dano!")
@@ -168,6 +190,11 @@ def start_battle(player, npc):
             
         print(f"- {npc['name']} ataca {player.get('name', 'Player')}!")
         npc_damage, npc_critical = attack_player(npc, player)
+        
+        if future_sight_bonus:
+            npc_damage = int(npc_damage * 0.8)
+            player["hp"] += int(npc_damage * 0.2)
+            print(f"🔮 Você antecipa e reduz o dano!")
         
         if npc_critical:
             print(f"  💥 CRÍTICO INIMIGO! Causou {npc_damage} de dano!")
